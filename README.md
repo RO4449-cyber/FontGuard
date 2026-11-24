@@ -78,6 +78,15 @@ Minecraft's own fonts are bitmaps, so you won't see a difference. Custom TTF fon
 
 When something is blocked, you'll see a gold chat message, and details go to `logs/latest.log`.
 
+## Tested in-game (Minecraft 26.3, real minecraft2shell pack)
+
+- **Server attack, worst case:** a local 26.3 server sent the exploit pack with `require-resource-pack=true` to a
+  client that already trusted the server, so there was no prompt. FontGuard blocked all 144 fonts as server fonts,
+  the player joined normally, and chat showed
+  *"[FontGuard] Blocked 144 font file(s) from the server's resource pack."*
+- **Same pack installed locally:** all 144 fonts were caught by the scanner (`IDEF overrides built-in opcode 0x36`).
+- **Normal fonts:** a pack that swaps the default font for Arial (TTF) still loads and renders with hinting off.
+
 ## Settings
 
 `config/fontguard.properties` is created on first launch:
