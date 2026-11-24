@@ -1,0 +1,18 @@
+// Plain-Java project used only to unit-test the font scanner (no Minecraft needed).
+plugins { id 'java' }
+repositories { mavenCentral() }
+sourceSets {
+    main { java { srcDirs = ['src/main/java']; include 'dev/fontguard/scan/**' } ; resources.srcDirs = [] }
+}
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+}
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+tasks.withType(JavaCompile).configureEach { options.release = 17 }
+test {
+    useJUnitPlatform()
+    // Optional: point at the real minecraft2shell resource-pack.zip to test against it.
+    systemProperty 'fontguard.samplePack', System.getProperty('fontguard.samplePack', '')
+    testLogging { events 'passed', 'skipped', 'failed'; showStandardStreams = true }
+}

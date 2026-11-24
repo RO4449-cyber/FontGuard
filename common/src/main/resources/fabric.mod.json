@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "fontguard",
+  "version": "${version}",
+  "name": "FontGuard",
+  "description": "Protects your computer from malicious fonts in server resource packs (such as the minecraft2shell FreeType exploit). Blocks server fonts, scans local fonts, and disables font bytecode.",
+  "authors": ["RO4449-cyber"],
+  "contact": {
+    "sources": "https://github.com/RO4449-cyber/FontGuard",
+    "issues": "https://github.com/RO4449-cyber/FontGuard/issues"
+  },
+  "license": "LicenseRef-FontGuard-NonCommercial",
+  "icon": "assets/fontguard/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.fontguard.FontGuard"]
+  },
+  "mixins": ["fontguard.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "${mcrange}",
+    "java": "${java}"
+  }
+}

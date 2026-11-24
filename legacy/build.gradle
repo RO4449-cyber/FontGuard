@@ -1,0 +1,22 @@
+// Minecraft 1.20 - 1.21.11 (obfuscated era). Compiled with Mojang names, remapped to intermediary,
+// so one jar runs on every version in that range.
+plugins { id 'net.fabricmc.fabric-loom-remap' version "${loom_version}" }
+base { archivesName = "fontguard-fabric-1.20-1.21.11" }
+repositories { mavenCentral() }
+dependencies {
+    minecraft "com.mojang:minecraft:${legacy_minecraft}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+}
+sourceSets.main {
+    java.srcDirs = ['../common/src/main/java', 'src/main/java']
+    resources.srcDirs = ['../common/src/main/resources']
+}
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+tasks.withType(JavaCompile).configureEach { options.release = 17 }
+processResources {
+    def props = [version: project.version, mcrange: '>=1.20 <=1.21.11', java: '>=17', compat: 'JAVA_17']
+    inputs.properties props
+    filesMatching(['fabric.mod.json', 'fontguard.mixins.json']) { expand props }
+}
+jar { from(rootProject.file('LICENSE')) }

@@ -1,0 +1,20 @@
+// Minecraft 26.1+ (unobfuscated, Java 25). No remapping needed.
+plugins { id 'net.fabricmc.fabric-loom' version "${loom_version}" }
+base { archivesName = "fontguard-fabric-26.x" }
+repositories { mavenCentral() }
+dependencies {
+    minecraft "com.mojang:minecraft:${modern_minecraft}"
+    implementation "net.fabricmc:fabric-loader:${loader_version}"
+}
+sourceSets.main {
+    java.srcDirs = ['../common/src/main/java', 'src/main/java']
+    resources.srcDirs = ['../common/src/main/resources']
+}
+java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+tasks.withType(JavaCompile).configureEach { options.release = 21 }
+processResources {
+    def props = [version: project.version, mcrange: '>=26.1', java: '>=25', compat: 'JAVA_21']
+    inputs.properties props
+    filesMatching(['fabric.mod.json', 'fontguard.mixins.json']) { expand props }
+}
+jar { from(rootProject.file('LICENSE')) }

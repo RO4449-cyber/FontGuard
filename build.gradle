@@ -1,0 +1,6 @@
+// Shared settings. The actual mod jars are built by :legacy (1.20 - 1.21.11)
+// and :modern (26.1+). :core holds the shared code and the scanner unit tests.
+subprojects {
+    version = rootProject.mod_version
+    group = 'dev.fontguard'
+}

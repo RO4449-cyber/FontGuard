@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.fontguard.mixin",
+  "plugin": "dev.fontguard.mixin.FontGuardMixinPlugin",
+  "compatibilityLevel": "${compat}",
+  "client": [
+    "TrueTypeGlyphProviderDefinitionMixin",
+    "TrueTypeGlyphProviderHintingMixin",
+    "NativeImageHintingMixin",
+    "MinecraftMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

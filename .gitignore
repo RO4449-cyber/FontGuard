@@ -1,0 +1,10 @@
+.gradle/
+build/
+run/
+*/run/
+*/build/
+.idea/
+*.iml
+.DS_Store
+# never commit exploit samples
+*.zip

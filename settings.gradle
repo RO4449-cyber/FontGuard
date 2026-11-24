@@ -1,0 +1,13 @@
+pluginManagement {
+    repositories {
+        maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
+        gradlePluginPortal()
+    }
+}
+plugins {
+    // Lets Gradle download the right JDK (17/21/25) automatically.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+rootProject.name = 'fontguard'
+include 'core', 'legacy', 'modern'
+project(':core').projectDir = file('common')
