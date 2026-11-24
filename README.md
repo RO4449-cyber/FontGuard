@@ -1,139 +1,112 @@
+<div align="center">
+
+<img src="docs/logo.png" alt="FontGuard logo" width="160">
+
 # FontGuard
 
-**A client-side Fabric mod that protects your computer from malicious fonts in Minecraft resource packs.**
+**Anti-RCE protection for Minecraft resource packs**
 
-In November 2026 a public proof of concept, [minecraft2shell](https://github.com/bikini/minecraft2shell), showed that a
-Minecraft server can run native code on your computer just by sending you a resource pack. You join the server,
-accept the pack, and a crafted font file takes over the game process. The demo opens Calculator, but the same
-technique could install malware such as a RAT.
+Stops malicious fonts in server resource packs from taking over your computer,
+like the [minecraft2shell](https://github.com/bikini/minecraft2shell) exploit.
 
-FontGuard stops this, and the wider family of font attacks it belongs to.
+[![Download](https://img.shields.io/github/v/release/RO4449-cyber/FontGuard?label=download&color=2868d6)](https://github.com/RO4449-cyber/FontGuard/releases/latest)
+![Minecraft](https://img.shields.io/badge/Minecraft-1.20%20–%2026.x-3a8a3a)
+![Loader](https://img.shields.io/badge/loader-Fabric%20%7C%20Quilt-dbb47a)
+![Platforms](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-supported-555)
+![License](https://img.shields.io/badge/license-non--commercial-f2b632)
 
-| | |
-|---|---|
-| **Minecraft** | 1.20 – 1.21.11 (one jar) and 26.1 – 26.3+ (one jar) |
-| **Loader** | Fabric (and Quilt). No Fabric API needed. |
-| **OS** | Windows, macOS, Linux |
-| **Side** | Client only. Servers don't need it. |
+</div>
 
-## Download
+---
 
-Get the jar that matches your Minecraft version from [Releases](../../releases):
+## ⚠️ Why you need this
 
-- `fontguard-fabric-1.20-1.21.11-<version>.jar` for **Minecraft 1.20 to 1.21.11**
-- `fontguard-fabric-26.x-<version>.jar` for **Minecraft 26.1 and newer**
+In November 2026, a public proof of concept showed that **a Minecraft server can run its own program on your
+computer** just by sending you a resource pack. The pack contains a booby-trapped font. When Minecraft draws
+text with it, a bug in the game's font engine (FreeType) lets the font take control of the game.
+An attacker could use this to install a virus or a remote-access trojan (RAT).
 
-Put it in your `.minecraft/mods` folder. That's all. It's on by default with the safest settings.
+FontGuard blocks this attack and others like it. [Read how the exploit works →](docs/HOW-IT-WORKS.md)
 
-## How the exploit works
+## 🛡️ What FontGuard does
 
-1. **Delivery.** The server sets `resource-pack=` in `server.properties`. The pack contains 144 `.ttf` font files
-   plus font JSON files that use the `ttf` provider.
-2. **Trigger.** The server shows ordinary action-bar text (`F`, then `A`). To draw those letters, Minecraft asks
-   **FreeType** (the native C font library bundled with the game through LWJGL) to load the glyphs from the
-   malicious font.
-3. **Memory corruption.** TrueType fonts contain small *hinting programs*, bytecode that FreeType runs in a
-   virtual machine to adjust glyph outlines. The crafted font uses a nested composite glyph so the `SHZ`
-   instruction writes past the end of a heap buffer (FreeType 2.14.3, `Ins_SHZ`). That write corrupts
-   FreeType's own interpreter state.
-4. **Taking control.** The font's `fpgm` table uses `IDEF` to redefine opcode `0x36` (SHZ). The corrupted state
-   makes FreeType jump into that font-supplied code, which reads and writes interpreter memory, builds a ROP
-   chain, and pivots the CPU stack into it.
-5. **Payload.** The chain calls `GetProcAddress` → `WinExec("calc.exe")`. A real attacker would download and run
-   malware instead.
+| Layer | What it does | Default |
+|---|---|---|
+| **1. Block server fonts** | Font files sent by servers or downloaded worlds are never loaded. The rest of the pack (textures, sounds) still works. | On |
+| **2. Scan other fonts** | Fonts from your own packs and mods are checked first. Malformed or exploit-style fonts are refused. | On |
+| **3. Turn off font code** | Fonts can contain small programs ("hinting"). FontGuard stops them from ever running, which is where this bug lives. | On |
 
-The PoC targets Minecraft 26.3 on Windows x64. However, **the bug is in FreeType's bytecode interpreter, which
-runs on every OS.** Only the final ROP gadgets are Windows-specific, and porting them is ordinary exploit work.
-Every version since Minecraft switched to FreeType uses the same code path. 1.20.x uses `stb_truetype`, which
-says itself that it is not safe for untrusted fonts.
+Each layer alone stops minecraft2shell. When something is blocked, you'll see a gold message in chat.
 
-## How FontGuard protects you
+## 📥 Install
 
-FontGuard has three independent layers. Any one of them alone stops minecraft2shell.
+1. Install [Fabric](https://fabricmc.net/use/installer/) (or Quilt) for your Minecraft version.
+2. Download the right jar from [**Releases**](https://github.com/RO4449-cyber/FontGuard/releases/latest):
 
-**1. Server fonts are blocked (default).**
-Before Minecraft opens a `.ttf`, FontGuard checks which pack the file *actually* comes from. If it's a
-server-sent or downloaded-world pack (`server/...`), the font is refused before native code ever sees a byte.
-Minecraft skips that font and keeps using its normal one. The rest of the server's pack (textures, sounds,
-models) still works. Pack names are assigned by your client, so a server can't disguise its pack.
+   | Your Minecraft version | Download |
+   |---|---|
+   | **1.20 to 1.21.11** | `fontguard-fabric-1.20-1.21.11-<version>.jar` |
+   | **26.1 and newer** | `fontguard-fabric-26.x-<version>.jar` |
 
-**2. Every other font is scanned (default).**
-Fonts from your own resource packs and from mods are checked by a pure-Java scanner first. Fonts are
-refused if they:
-- use `IDEF` to override a built-in TrueType instruction (the exploit's core trick)
-- are malformed: tables or glyph data past the end of the file, broken `loca`, truncated bytecode,
-  composite-glyph loops or excessive nesting, or more points/contours than the font's own `maxp` declares
-  (a classic heap-overflow setup)
-- are not plain TrueType (collections, CFF/OpenType, WOFF), which Minecraft doesn't support anyway and which
-  would reach riskier FreeType parsers
-- are unreasonably large (default 32 MB)
+3. Put it in your `.minecraft/mods` folder. That's it.
 
-Tested against all 144 fonts in the minecraft2shell pack (all blocked) and 204 TrueType fonts shipped with macOS
-(203 pass. The one refused is a bitmap-only font Minecraft can't load anyway).
+No Fabric API is needed. It only runs on your game (the client), so servers don't need it.
 
-**3. Font bytecode is never executed (default).**
-FontGuard makes Minecraft load glyphs with `FT_LOAD_NO_HINTING | FT_LOAD_NO_AUTOHINT`, so FreeType's TrueType
-bytecode interpreter, where this bug lives, never runs. This also protects against *future* interpreter bugs.
-Minecraft's own fonts are bitmaps, so you won't see a difference. Custom TTF fonts may look very slightly softer.
+## ✅ Tested
 
-When something is blocked, you'll see a gold chat message, and details go to `logs/latest.log`.
+Tested in Minecraft 26.3 with the real exploit pack:
 
-## Tested in-game (Minecraft 26.3, real minecraft2shell pack)
+- **Server attack (worst case, no prompt):** all 144 malicious fonts were blocked, the player joined
+  normally, and a warning appeared in chat.
+- **Same pack installed by hand:** all 144 fonts were caught by the scanner.
+- **Normal custom fonts** (for example Arial) still load and look fine.
+- **False alarms:** 203 of 204 real macOS fonts pass the scanner. The one it refuses can't be used by
+  Minecraft anyway.
 
-- **Server attack, worst case:** a local 26.3 server sent the exploit pack with `require-resource-pack=true` to a
-  client that already trusted the server, so there was no prompt. FontGuard blocked all 144 fonts as server fonts,
-  the player joined normally, and chat showed
-  *"[FontGuard] Blocked 144 font file(s) from the server's resource pack."*
-- **Same pack installed locally:** all 144 fonts were caught by the scanner (`IDEF overrides built-in opcode 0x36`).
-- **Normal fonts:** a pack that swaps the default font for Arial (TTF) still loads and renders with hinting off.
+## ⚙️ Settings
 
-## Settings
+After the first launch, settings are in `config/fontguard.properties`:
 
-`config/fontguard.properties` is created on first launch:
+| Setting | Options | Default |
+|---|---|---|
+| `server_pack_fonts` | `BLOCK`, `SCAN` | `BLOCK` |
+| `local_pack_fonts` | `SCAN`, `BLOCK`, `ALLOW` | `SCAN` |
+| `disable_font_hinting` | `true`, `false` | `true` |
+| `notify_in_chat` | `true`, `false` | `true` |
+| `max_font_size_mb` | number | `32` |
 
-```properties
-# BLOCK (default) = never load fonts from server/world packs.  SCAN = load only if the scan is clean.
-server_pack_fonts=BLOCK
-# Fonts from your own packs and mods: SCAN (default) | BLOCK | ALLOW
-local_pack_fonts=SCAN
-# Stop TrueType bytecode from ever running (recommended)
-disable_font_hinting=true
-notify_in_chat=true
-max_font_size_mb=32
-```
+The defaults are the safest choice. For safety, server fonts can never be set to `ALLOW`.
 
-Server fonts can never be set to `ALLOW`.
+## ❓ FAQ
 
-## Limits (please read)
+**Will this change how my game looks?**
+No. Minecraft's own fonts aren't TrueType fonts, so they are never touched. A server that uses a custom
+`.ttf` font will show the normal Minecraft font instead.
 
-- FontGuard covers **fonts**, which is the attack surface minecraft2shell uses. Resource packs also contain PNG
-  images and sounds, decoded by other native libraries. No public exploit exists for those today, but no mod can
-  promise "100% safe". If you don't trust a server, **decline its resource pack.**
-- It only protects Fabric/Quilt clients that have it installed. The real fix is for Mojang to update or sandbox
-  FreeType. Keep your game updated.
-- A NeoForge/Forge port is planned. Contributions welcome.
+**Does it make me 100% safe?**
+No mod can promise that. FontGuard closes the font attack, which is the one used by the public exploit.
+Resource packs also contain images and sounds, which are handled by other code. If you don't trust a
+server, decline its resource pack.
 
-## Building from source
+**Is there a Forge / NeoForge version?**
+Not yet. It's planned.
 
-Requires a JDK (17+) and internet access. Gradle downloads the other JDKs it needs.
+**I found a security problem.**
+Please see [SECURITY.md](SECURITY.md).
 
-```bash
-./gradlew build
-```
+## 📚 More
 
-Jars appear in `legacy/build/libs` and `modern/build/libs`. To run the scanner tests, including against the real
-exploit pack if you have it:
+- [How the exploit works and how FontGuard stops it](docs/HOW-IT-WORKS.md)
+- [Building from source](docs/BUILDING.md)
+- [Changelog](CHANGELOG.md)
 
-```bash
-./gradlew :core:test -Dfontguard.samplePack=/path/to/resource-pack.zip
-```
+## 👥 Developers
 
-The project has three parts:
-- `common/` is the shared code: the scanner, the mixins, and the config.
-- `legacy/` builds the 1.20–1.21.11 jar (Mojang names remapped to intermediary).
-- `modern/` builds the 26.x jar (unobfuscated).
+- **RO4449**
+- **Claude** (Anthropic)
 
-## License
+## 📄 License
 
-FontGuard Non-Commercial License. See [LICENSE](LICENSE). The source is open: use it, fork it, and improve it.
-**You may not make money from it.** That means no selling, no paywalls, and no monetized re-uploads.
+FontGuard Non-Commercial License. See [LICENSE](LICENSE).
+The source code is open: use it, fork it, and improve it. **You may not make money from it.** That
+means no selling, no paywalls, and no monetized re-uploads.
